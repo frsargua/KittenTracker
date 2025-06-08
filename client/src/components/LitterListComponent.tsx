@@ -26,34 +26,40 @@ const LitterListComponent: React.FC = () => {
     fetchLitters();
   }, [getAccessTokenSilently]);
 
-  if (isLoading)
+  if (isLoading) {
     return (
       <div className="text-center my-5">
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
-        <p className="mt-2">Fetching litters...</p>
+        <p className="mt-2">Fetching your litters...</p>
       </div>
     );
-  if (error)
+  }
+
+  if (error) {
     return (
       <div className="alert alert-danger">Error fetching litters: {error}</div>
     );
+  }
 
   return (
     <div className="mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2>Your Litters</h2>
-        <Link to="/create-litter" className="btn btn-success">
-          Add New Litter
+        <h2 className="h4">Your Litters</h2>
+        <Link to="/create-litter" className="btn btn-primary">
+          <i className="bi bi-plus-lg me-2"></i>New Litter
         </Link>
       </div>
+
       {litters.length === 0 ? (
-        <div className="card text-center p-4">
+        <div className="card text-center p-4 border-2 border-dashed">
           <div className="card-body">
             <h5 className="card-title">No Litters Found</h5>
-            <p className="card-text">Get started by adding one!</p>
-            <Link to="/create-litter" className="btn btn-primary">
+            <p className="card-text text-muted">
+              It looks like you haven't created any litters yet.
+            </p>
+            <Link to="/create-litter" className="btn btn-success">
               Create Your First Litter
             </Link>
           </div>
@@ -62,20 +68,24 @@ const LitterListComponent: React.FC = () => {
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
           {litters.map((litter) => (
             <div className="col" key={litter.id}>
-              <div className="card h-100 shadow-sm">
-                <div className="card-body">
+              <div className="card h-100 shadow-sm hover-shadow-lg transition-shadow">
+                <div className="card-body d-flex flex-column">
                   <h5 className="card-title">{litter.name}</h5>
-                  <h6 className="card-subtitle mb-2 text-muted">
-                    DOB: {new Date(litter.dateOfBirth).toLocaleDateString()}
-                  </h6>
-                </div>
-                <div className="card-footer bg-transparent border-top-0 text-end">
-                  <Link
-                    to={`/litters/${litter.id}`}
-                    className="btn btn-outline-primary btn-sm"
-                  >
-                    View Details
-                  </Link>
+                  <p className="card-subtitle mb-2 text-muted">
+                    Born: {new Date(litter.dateOfBirth).toLocaleDateString()}
+                  </p>
+                  <p className="card-text flex-grow-1">
+                    {litter.notes || "No notes for this litter."}
+                  </p>
+                  <div className="mt-auto text-end">
+                    <Link
+                      to={`/litters/${litter.id}`}
+                      className="btn btn-outline-primary"
+                    >
+                      View Details
+                      <i className="bi bi-arrow-right-short ms-1"></i>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
