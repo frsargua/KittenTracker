@@ -24,6 +24,8 @@ createRoot(document.getElementById("root")!).render(
         audience: auth0Audience, // Crucial for getting an Access Token for your API
         // scope: "openid profile email" // Add other scopes as needed
       }}
+      useRefreshTokens={true}
+      cacheLocation="localstorage"
     >
       <App />
     </Auth0Provider>

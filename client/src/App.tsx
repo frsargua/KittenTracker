@@ -1,11 +1,5 @@
 // src/App.tsx
-import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 
 import ProtectedRoute from "./components/ProtectedRoute"; // Our HOC for protected routes
@@ -14,30 +8,13 @@ import ProtectedRoute from "./components/ProtectedRoute"; // Our HOC for protect
 import AuthenticatedLandingPage from "./pages/AuthenticatedLandingPage";
 import ProfilePage from "./pages/ProfilePage";
 
-import "./App.css"; // Or your global styles
+import "./App.css";
 import Navbar from "./components/NavbarComponent";
 import CreateLitterPage from "./pages/CreateLitterPage";
-import LitterDetailPage from "./pages/LitterDetailPage";
-
-// A simple public home page component (optional)
-const HomePage: React.FC = () => {
-  const { loginWithRedirect, isAuthenticated } = useAuth0();
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  return (
-    <div className="container text-center mt-5">
-      <h1>Welcome to KittenTracker!</h1>
-      <p>Please log in to manage your litters.</p>
-      <button
-        className="btn btn-primary btn-lg"
-        onClick={() => loginWithRedirect()}
-      >
-        Log In
-      </button>
-    </div>
-  );
-};
+import LitterDetailPage from "./pages/LitterDetailPage/LitterDetailPage";
+import LoadingSpinner from "./components/LoadingSpinner";
+import HomePage from "./pages/HomePage";
+import ErrorPage from "./pages/Error/ErrorPage";
 
 function App() {
   const { isLoading, error } = useAuth0();
@@ -45,27 +22,19 @@ function App() {
   if (isLoading) {
     return (
       <div className="vh-100 d-flex justify-content-center align-items-center">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+        <LoadingSpinner message="Authenticating..." />
       </div>
     );
   }
 
   if (error) {
-    return (
-      <div className="container mt-5">
-        <div className="alert alert-danger">Oops... {error.message}</div>
-      </div>
-    );
+    return <ErrorPage type={"OTHERS"} customMessage={error.message} />;
   }
 
   return (
     <Router>
       <Navbar />
       <div className="main-content">
-        {" "}
-        {/* Optional: for consistent padding below navbar */}
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route
@@ -84,15 +53,7 @@ function App() {
             path="/litters/:litterId"
             element={<ProtectedRoute component={LitterDetailPage} />}
           />
-          <Route
-            path="*"
-            element={
-              <div className="container mt-5 text-center">
-                <h2>404: Page Not Found</h2>
-                <p>The page you are looking for does not exist.</p>
-              </div>
-            }
-          />
+          <Route path="*" element={<ErrorPage type={"NOT_FOUND"} />} />
         </Routes>
       </div>
     </Router>
