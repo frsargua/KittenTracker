@@ -46,6 +46,24 @@ try {
   // process.exit(1); // Optionally exit if Firebase is critical
 }
 
+let bucket;
+try {
+  // Make sure to enable Firebase Storage in your Firebase console
+  // and set the bucket name in your .env file
+  // e.g., FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+  if (process.env.FIREBASE_STORAGE_BUCKET) {
+    bucket = admin.storage().bucket(process.env.FIREBASE_STORAGE_BUCKET);
+    console.log(`bucket: ${process.env.FIREBASE_STORAGE_BUCKET}`);
+    console.log("Firebase Storage bucket initialized.");
+  } else {
+    console.warn(
+      "FIREBASE_STORAGE_BUCKET environment variable not set. File uploads will be disabled."
+    );
+  }
+} catch (error) {
+  console.error("Firebase Storage initialization error:", error.message);
+}
+
 const db = admin.firestore();
 
-module.exports = { admin, db };
+module.exports = { admin, db, bucket };

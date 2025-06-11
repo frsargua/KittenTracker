@@ -51,6 +51,7 @@ export interface WeightRecord {
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+  photoUrl?: string;
 }
 
 export interface LitterDetail extends Omit<Litter, "kittens"> {
@@ -112,6 +113,45 @@ async function makeAuthenticatedRequest<T = any>(
     return await response.json();
   }
   return {} as T;
+}
+
+async function makeAuthenticatedMultipartRequest<T = any>(
+  url: string,
+  method: string,
+  getAccessTokenSilently: AccessTokenGetter,
+  formData: FormData
+): Promise<T> {
+  const token = await getAccessTokenSilently();
+  const headers: HeadersInit = {
+    Authorization: `Bearer ${token}`,
+    // No 'Content-Type' header, the browser will set it for FormData
+  };
+
+  const config: RequestInit = {
+    method,
+    headers,
+    body: formData,
+  };
+
+  const response = await fetch(url, config);
+
+  if (!response.ok) {
+    let errorData = {
+      message: `Request failed: ${response.status} ${response.statusText}`,
+    };
+    try {
+      const potentialErrorData = await response.json();
+      if (potentialErrorData && potentialErrorData.message) {
+        errorData = potentialErrorData;
+      }
+    } catch (e) {
+      /* Ignore */
+    }
+    console.error(`API Error (${method} ${url}):`, errorData.message);
+    throw new Error(errorData.message);
+  }
+
+  return response.json();
 }
 
 export const getUserLitters = async (
@@ -225,14 +265,15 @@ export const getKittenById = async (
 export const addWeightRecord = async (
   litterId: string,
   kittenId: string,
-  weightData: WeightRecordCreationData,
+  // The function now accepts FormData
+  formData: FormData,
   getAccessTokenSilently: AccessTokenGetter
 ): Promise<WeightRecord> => {
-  return makeAuthenticatedRequest<WeightRecord>(
+  return makeAuthenticatedMultipartRequest<WeightRecord>(
     `${API_BASE_URL}/litters/${litterId}/kittens/${kittenId}/weights`,
     "POST",
     getAccessTokenSilently,
-    weightData
+    formData
   );
 };
 

@@ -17,6 +17,14 @@ interface NewKittenFormData {
   color: string;
   description: string;
 }
+
+interface NewWeightFormData {
+  dateRecorded: string;
+  weightInGrams: string;
+  notes: string;
+  photo?: File | null; // Add a field for the photo
+}
+
 interface NewWeightFormData {
   dateRecorded: string;
   weightInGrams: string;
@@ -49,11 +57,14 @@ const LitterDetailPage: React.FC = () => {
 
   const [showAddWeightFormForKitten, setShowAddWeightFormForKitten] =
     React.useState<string | null>(null);
+
   const [newWeight, setNewWeight] = React.useState<NewWeightFormData>({
     dateRecorded: new Date().toISOString().split("T")[0],
     weightInGrams: "",
     notes: "",
+    photo: null, // Initialize photo as null
   });
+
   const [weightSubmitError, setWeightSubmitError] = React.useState<
     string | null
   >(null);
@@ -111,10 +122,16 @@ const LitterDetailPage: React.FC = () => {
   const toggleWeightView = (kittenId: string) => {
     setOpenWeightKittenId(openWeightKittenId === kittenId ? null : kittenId);
   };
+
   const handleNewWeightChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setNewWeight({ ...newWeight, [e.target.name]: e.target.value });
+    const { name, value, files } = e.target as HTMLInputElement;
+    if (name === "photo" && files) {
+      setNewWeight({ ...newWeight, photo: files[0] });
+    } else {
+      setNewWeight({ ...newWeight, [name]: value });
+    }
   };
 
   const handleAddWeightSubmit = async (
@@ -123,6 +140,8 @@ const LitterDetailPage: React.FC = () => {
   ) => {
     e.preventDefault();
     if (!litterId) return;
+    // ... (validation remains similar)
+
     if (
       !newWeight.dateRecorded ||
       !newWeight.weightInGrams.trim() ||
@@ -131,26 +150,34 @@ const LitterDetailPage: React.FC = () => {
       setWeightSubmitError("Valid date and positive weight are required.");
       return;
     }
+
+    const formData = new FormData();
+    formData.append("dateRecorded", newWeight.dateRecorded);
+    formData.append("weightInGrams", newWeight.weightInGrams);
+    formData.append("notes", newWeight.notes);
+    if (newWeight.photo) {
+      formData.append("photo", newWeight.photo);
+    }
+
     setWeightSubmitError(null);
     try {
-      const weightData = {
-        dateRecorded: newWeight.dateRecorded,
-        weightInGrams: parseFloat(newWeight.weightInGrams),
-        notes: newWeight.notes,
-      };
+      // The service function now takes formData
       await apiAddWeightRecord(
         litterId,
         kittenId,
-        weightData,
+        formData,
         getAccessTokenSilently
       );
+
       setShowAddWeightFormForKitten(null);
       setNewWeight({
+        // Reset the form
         dateRecorded: new Date().toISOString().split("T")[0],
         weightInGrams: "",
         notes: "",
+        photo: null,
       });
-      fetchLitterDetails();
+      fetchLitterDetails(); // Refresh data
     } catch (err: any) {
       setWeightSubmitError(err.message || "Failed to add weight record.");
     }
@@ -340,6 +367,7 @@ const LitterDetailPage: React.FC = () => {
                             <tr>
                               <th>Date</th>
                               <th>Weight (g)</th>
+                              <th>Photo</th> {/* Add Photo column */}
                               <th>Notes</th>
                             </tr>
                           </thead>
@@ -352,6 +380,26 @@ const LitterDetailPage: React.FC = () => {
                                   ).toLocaleDateString()}
                                 </td>
                                 <td>{record.weightInGrams}g</td>
+                                <td>
+                                  {record.photoUrl && (
+                                    <a
+                                      href={record.photoUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <img
+                                        src={record.photoUrl}
+                                        alt={`Weight record for ${kitten.name}`}
+                                        style={{
+                                          width: "60px",
+                                          height: "60px",
+                                          objectFit: "cover",
+                                          borderRadius: "4px",
+                                        }}
+                                      />
+                                    </a>
+                                  )}
+                                </td>
                                 <td>{record.notes}</td>
                               </tr>
                             ))}
@@ -376,8 +424,91 @@ const LitterDetailPage: React.FC = () => {
                       </button>
 
                       {showAddWeightFormForKitten === kitten.id && (
-                        <div className="card p-3 mt-3 bg-light">
-                          {/* ... Add Weight Form ... */}
+                        <div className="card p-3 mt-3 bg-light border">
+                          <h5>Add Weight for {kitten.name}</h5>
+                          <form
+                            onSubmit={(e) =>
+                              handleAddWeightSubmit(e, kitten.id)
+                            }
+                          >
+                            <div className="row">
+                              <div className="col-md-6 mb-2">
+                                <label
+                                  htmlFor={`weightDate-${kitten.id}`}
+                                  className="form-label"
+                                >
+                                  Date*
+                                </label>
+                                <input
+                                  type="date"
+                                  className="form-control form-control-sm"
+                                  id={`weightDate-${kitten.id}`}
+                                  name="dateRecorded"
+                                  value={newWeight.dateRecorded}
+                                  onChange={handleNewWeightChange}
+                                  required
+                                />
+                              </div>
+                              <div className="col-md-6 mb-2">
+                                <label
+                                  htmlFor={`weightGrams-${kitten.id}`}
+                                  className="form-label"
+                                >
+                                  Weight (grams)*
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  className="form-control form-control-sm"
+                                  id={`weightGrams-${kitten.id}`}
+                                  name="weightInGrams"
+                                  value={newWeight.weightInGrams}
+                                  onChange={handleNewWeightChange}
+                                  placeholder="e.g., 120.5"
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-3">
+                              <label htmlFor="photo" className="form-label">
+                                Kitten Photo (Optional)
+                              </label>
+                              <input
+                                type="file"
+                                className="form-control"
+                                id="photo"
+                                name="photo"
+                                accept="image/*"
+                                onChange={handleNewWeightChange}
+                              />
+                            </div>
+
+                            <div className="mb-2">
+                              <label
+                                htmlFor={`weightNotes-${kitten.id}`}
+                                className="form-label"
+                              >
+                                Notes
+                              </label>
+                              <textarea
+                                className="form-control form-control-sm"
+                                id={`weightNotes-${kitten.id}`}
+                                name="notes"
+                                rows={2}
+                                value={newWeight.notes}
+                                onChange={handleNewWeightChange}
+                              ></textarea>
+                            </div>
+
+                            {weightSubmitError && (
+                              <div className="alert alert-danger mt-3">
+                                {weightSubmitError}
+                              </div>
+                            )}
+                            <button type="submit" className="btn btn-primary">
+                              Save Weight
+                            </button>
+                          </form>
                         </div>
                       )}
                     </div>

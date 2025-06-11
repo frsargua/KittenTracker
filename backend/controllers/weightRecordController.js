@@ -1,5 +1,6 @@
 // server/controllers/weightRecordController.js
-const { db } = require("../config/firebaseAdmin");
+const { db, bucket } = require("../config/firebaseAdmin");
+const { v4: uuidv4 } = require("uuid");
 
 // Helper for weight record ownership, ensuring parent kitten and litter also belong to user
 const ensureWeightRecordOwnership = async (
@@ -71,6 +72,7 @@ exports.addWeightRecord = async (req, res, next) => {
       res,
       false
     );
+
     if (!ownershipCheck || !ownershipCheck.kittenOwned) return;
 
     if (!dateRecorded || weightInGrams === undefined) {
@@ -88,14 +90,51 @@ exports.addWeightRecord = async (req, res, next) => {
     const newWeightData = {
       kittenId,
       userId,
-      dateRecorded, // Should be ISO string or Firestore Timestamp
-      weightInGrams: parsedWeight,
+      dateRecorded,
+      weightInGrams: parseFloat(weightInGrams),
       notes: notes || "",
       createdAt: new Date().toISOString(),
+      photoUrl: null,
     };
 
-    const weightRef = await db.collection("weightRecords").add(newWeightData);
-    res.status(201).json({ id: weightRef.id, ...newWeightData });
+    if (req.file) {
+      if (!bucket) {
+        throw new Error(
+          "Firebase Storage bucket is not initialized. Cannot upload file."
+        );
+      }
+      const blob = bucket.file(
+        `kitten-weights/${userId}/${kittenId}/${uuidv4()}-${
+          req.file.originalname
+        }`
+      );
+
+      const blobStream = blob.createWriteStream({
+        metadata: {
+          contentType: req.file.mimetype,
+        },
+      });
+
+      blobStream.on("error", (err) => next(err));
+
+      blobStream.on("finish", async () => {
+        // The public URL can be accessed at
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+        newWeightData.photoUrl = publicUrl;
+
+        // Save the record to Firestore after the file is uploaded
+        const weightRef = await db
+          .collection("weightRecords")
+          .add(newWeightData);
+        res.status(201).json({ id: weightRef.id, ...newWeightData });
+      });
+
+      blobStream.end(req.file.buffer);
+    } else {
+      // If no file, save directly to Firestore
+      const weightRef = await db.collection("weightRecords").add(newWeightData);
+      res.status(201).json({ id: weightRef.id, ...newWeightData });
+    }
   } catch (error) {
     console.error("Error adding weight record:", error);
     next(error);
