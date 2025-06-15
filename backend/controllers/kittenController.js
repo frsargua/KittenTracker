@@ -1,5 +1,6 @@
 // server/controllers/kittenController.js
 const { db } = require("../config/firebaseAdmin");
+const { decryptId, encryptId } = require("../config/idObfuscation");
 
 // Helper for kitten ownership, ensuring parent litter also belongs to user
 const ensureKittenAndLitterOwnership = async (
@@ -65,7 +66,10 @@ exports.addKittenToLitter = async (req, res, next) => {
     const { litterId } = req.params;
     const { name, gender, color, description } = req.body;
 
-    if (!(await ensureLitterOwnershipForKittenCreation(litterId, userId, res)))
+    const decryptedId = decryptId(litterId);
+    if (
+      !(await ensureLitterOwnershipForKittenCreation(decryptedId, userId, res))
+    )
       return;
 
     if (!name) {
@@ -73,7 +77,7 @@ exports.addKittenToLitter = async (req, res, next) => {
     }
 
     const newKittenData = {
-      litterId,
+      litterId: decryptedId,
       userId,
       name,
       gender: gender || "",
@@ -138,10 +142,15 @@ exports.getKittenById = async (req, res, next) => {
 
     const kittenWeights = [];
     weightsSnapshot.forEach((doc) =>
-      kittenWeights.push({ id: doc.id, ...doc.data() })
+      kittenWeights.push({
+        id: encryptId(doc.id),
+        ...doc.data(),
+      })
     );
 
-    res.status(200).json({ ...kitten, weights: kittenWeights });
+    res
+      .status(200)
+      .json({ ...kitten, id: encryptId(kitten.id), weights: kittenWeights });
   } catch (error) {
     console.error("Error fetching kitten by ID:", error);
     next(error);

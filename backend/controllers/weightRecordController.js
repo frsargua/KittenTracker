@@ -1,6 +1,7 @@
 // server/controllers/weightRecordController.js
 const { db, bucket } = require("../config/firebaseAdmin");
 const { v4: uuidv4 } = require("uuid");
+const { decryptId } = require("../config/idObfuscation");
 
 // Helper for weight record ownership, ensuring parent kitten and litter also belong to user
 const ensureWeightRecordOwnership = async (
@@ -16,13 +17,15 @@ const ensureWeightRecordOwnership = async (
   if (!litterSnap.exists || litterSnap.data().userId !== currentUserId) {
     res.status(403).json({
       message:
-        "Forbidden: You do not own the parent litter or it does not exist.",
+        "Forbidden: You do not own the parent litter or it does not e3xist.",
     });
     return null;
   }
 
   const kittenRef = db.collection("kittens").doc(kittenId);
+
   const kittenSnap = await kittenRef.get();
+
   if (
     !kittenSnap.exists ||
     kittenSnap.data().userId !== currentUserId ||
@@ -63,10 +66,13 @@ exports.addWeightRecord = async (req, res, next) => {
     const { litterId, kittenId } = req.params;
     const { dateRecorded, weightInGrams, notes } = req.body;
 
+    const decryptedId = decryptId(litterId);
+    const decryptedIdKitten = decryptId(kittenId);
+
     // Check ownership of parent kitten (and its litter)
     const ownershipCheck = await ensureWeightRecordOwnership(
-      litterId,
-      kittenId,
+      decryptedId,
+      decryptedIdKitten,
       null,
       userId,
       res,
@@ -88,7 +94,7 @@ exports.addWeightRecord = async (req, res, next) => {
     }
 
     const newWeightData = {
-      kittenId,
+      kittenId: decryptedIdKitten,
       userId,
       dateRecorded,
       weightInGrams: parseFloat(weightInGrams),
@@ -146,10 +152,13 @@ exports.getKittenWeightRecords = async (req, res, next) => {
     const userId = req.auth.payload.sub;
     const { litterId, kittenId } = req.params;
 
+    const decryptedId = decryptId(litterId);
+    const decryptedIdKitten = decryptId(kittenId);
+
     // Check ownership of parent kitten
     const ownershipCheck = await ensureWeightRecordOwnership(
-      litterId,
-      kittenId,
+      decryptedId,
+      decryptedIdKitten,
       null,
       userId,
       res,
@@ -159,7 +168,7 @@ exports.getKittenWeightRecords = async (req, res, next) => {
 
     const weightsSnapshot = await db
       .collection("weightRecords")
-      .where("kittenId", "==", kittenId)
+      .where("kittenId", "==", decryptedIdKitten)
       .where("userId", "==", userId)
       .orderBy("dateRecorded", "desc")
       .get();
@@ -181,9 +190,12 @@ exports.updateWeightRecord = async (req, res, next) => {
     const { litterId, kittenId, weightId } = req.params;
     const { dateRecorded, weightInGrams, notes } = req.body;
 
+    const decryptedLitterId = decryptId(litterId);
+    const decryptedIdKitten = decryptId(kittenId);
+
     const existingRecord = await ensureWeightRecordOwnership(
-      litterId,
-      kittenId,
+      decryptedLitterId,
+      decryptedIdKitten,
       weightId,
       userId,
       res
@@ -221,9 +233,12 @@ exports.removeWeightRecord = async (req, res, next) => {
     const userId = req.auth.payload.sub;
     const { litterId, kittenId, weightId } = req.params;
 
+    const decryptedLitterId = decryptId(litterId);
+    const decryptedIdKitten = decryptId(kittenId);
+
     const record = await ensureWeightRecordOwnership(
-      litterId,
-      kittenId,
+      decryptedLitterId,
+      decryptedIdKitten,
       weightId,
       userId,
       res

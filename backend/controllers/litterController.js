@@ -1,5 +1,6 @@
 // server/controllers/litterController.js
 const { db } = require("../config/firebaseAdmin"); // Use Firestore
+const { recursivelyEncryptIds } = require("../config/idObfuscation");
 
 // Helper to check ownership for Firestore documents
 const ensureOwnership = async (collectionName, docId, currentUserId, res) => {
@@ -44,7 +45,9 @@ exports.createLitter = async (req, res, next) => {
     };
 
     const litterRef = await db.collection("litters").add(newLitterData);
-    res.status(201).json({ id: litterRef.id, ...newLitterData });
+    res
+      .status(201)
+      .json(recursivelyEncryptIds({ id: litterRef.id, ...newLitterData }));
   } catch (error) {
     console.error("Error creating litter:", error);
     next(error);
@@ -62,9 +65,13 @@ exports.getUserLitters = async (req, res, next) => {
 
     const userLitters = [];
     littersSnapshot.forEach((doc) => {
-      userLitters.push({ id: doc.id, ...doc.data() });
+      userLitters.push({
+        id: doc.id,
+        ...doc.data(),
+      });
     });
-    res.status(200).json(userLitters);
+
+    res.status(200).json(recursivelyEncryptIds(userLitters));
   } catch (error) {
     console.error("Error fetching user litters:", error);
     next(error);
@@ -75,7 +82,6 @@ exports.getLitterById = async (req, res, next) => {
   try {
     const userId = req.auth.payload.sub;
     const { litterId } = req.params;
-
     const litter = await ensureOwnership("litters", litterId, userId, res);
     if (!litter) return; // Error response already sent by ensureOwnership
 
@@ -90,7 +96,13 @@ exports.getLitterById = async (req, res, next) => {
       litterKittens.push({ id: doc.id, ...doc.data() })
     );
 
-    res.status(200).json({ ...litter, kittens: litterKittens });
+    res.status(200).json(
+      recursivelyEncryptIds({
+        ...litter,
+        id: litter.id,
+        kittens: litterKittens,
+      })
+    );
   } catch (error) {
     console.error("Error fetching litter by ID:", error);
     next(error);
@@ -125,7 +137,13 @@ exports.updateLitter = async (req, res, next) => {
     }
 
     await db.collection("litters").doc(litterId).update(updateData);
-    res.status(200).json({ id: litterId, ...existingLitter, ...updateData });
+    res.status(200).json(
+      recursivelyEncryptIds({
+        id: litterId,
+        ...existingLitter,
+        ...updateData,
+      })
+    );
   } catch (error) {
     console.error("Error updating litter:", error);
     next(error);
