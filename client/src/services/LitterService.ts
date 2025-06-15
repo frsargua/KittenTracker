@@ -19,9 +19,10 @@ export type WeightRecordUpdateData = Partial<WeightRecordCreationData>;
 export interface Litter {
   id: string;
   name: string;
-  dateOfBirth: string;
+  dateOfBirth: string | Date;
   motherName?: string;
   breed?: string;
+  otherBreed?: string;
   notes?: string;
   userId: string;
   createdAt?: string;

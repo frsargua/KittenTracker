@@ -10,8 +10,8 @@ import {
   getKittenWeightRecords,
   type KittenCreationData,
 } from "../../services/LitterService";
-import LitterInfo from "./components/LitterInfo";
-import KittenList from "./components/KittenList";
+import LitterInfo from "./Components/LitterInfo";
+import KittenList from "./Components/KittenList";
 import WeightChart from "../../components/WeightChart";
 import LoadingSpinner from "../../components/LoadingSpinner";
 

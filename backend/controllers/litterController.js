@@ -25,7 +25,8 @@ const ensureOwnership = async (collectionName, docId, currentUserId, res) => {
 
 exports.createLitter = async (req, res, next) => {
   try {
-    const { name, dateOfBirth, motherName, breed, notes } = req.body;
+    const { name, dateOfBirth, motherName, breed, otherBreed, notes } =
+      req.body;
     const userId = req.auth.payload.sub;
 
     if (!name || !dateOfBirth) {
@@ -39,7 +40,7 @@ exports.createLitter = async (req, res, next) => {
       name,
       dateOfBirth,
       motherName: motherName || "",
-      breed: breed || "",
+      breed: breed ? breed : otherBreed ? otherBreed : "",
       notes: notes || "",
       createdAt: new Date().toISOString(), // Optional: timestamp
     };

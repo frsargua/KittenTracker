@@ -10,7 +10,7 @@ import ProfilePage from "./pages/ProfilePage";
 
 import "./App.css";
 import Navbar from "./components/NavbarComponent";
-import CreateLitterPage from "./pages/CreateLitterPage";
+import CreateLitterPage from "./pages/CreateLitterPage/CreateLitterPage";
 import LitterDetailPage from "./pages/LitterDetailPage/LitterDetailPage";
 import LoadingSpinner from "./components/LoadingSpinner";
 import HomePage from "./pages/HomePage";
