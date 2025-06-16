@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import { Auth0Provider } from "@auth0/auth0-react";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./index.css";
@@ -27,7 +29,9 @@ createRoot(document.getElementById("root")!).render(
       useRefreshTokens={true}
       cacheLocation="localstorage"
     >
-      <App />
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <App />
+      </LocalizationProvider>{" "}
     </Auth0Provider>
   </StrictMode>
 );
