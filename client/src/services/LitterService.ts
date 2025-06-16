@@ -12,7 +12,7 @@ export type KittenUpdateData = Partial<KittenCreationData>;
 
 export type WeightRecordCreationData = Pick<
   WeightRecord,
-  "dateRecorded" | "weightInGrams" | "notes"
+  "dateRecorded" | "weightInGrams" | "notes" | "photoUrl"
 >;
 export type WeightRecordUpdateData = Partial<WeightRecordCreationData>;
 
@@ -47,7 +47,7 @@ export interface WeightRecord {
   id: string;
   kittenId: string;
   userId: string;
-  dateRecorded: string;
+  dateRecorded: string | Date;
   weightInGrams: number;
   notes?: string;
   createdAt?: string;
@@ -266,15 +266,14 @@ export const getKittenById = async (
 export const addWeightRecord = async (
   litterId: string,
   kittenId: string,
-  // The function now accepts FormData
-  formData: FormData,
+  weightRecordData: FormData,
   getAccessTokenSilently: AccessTokenGetter
 ): Promise<WeightRecord> => {
   return makeAuthenticatedMultipartRequest<WeightRecord>(
     `${API_BASE_URL}/litters/${litterId}/kittens/${kittenId}/weights`,
     "POST",
     getAccessTokenSilently,
-    formData
+    weightRecordData
   );
 };
 

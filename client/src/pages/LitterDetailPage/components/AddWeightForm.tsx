@@ -1,4 +1,9 @@
 import React, { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import * as yup from "yup";
+import dayjs, { Dayjs } from "dayjs";
 
 interface AddWeightFormProps {
   kittenId: string;
@@ -6,59 +11,66 @@ interface AddWeightFormProps {
   onCancel: () => void;
 }
 
-interface NewWeightFormData {
-  dateRecorded: string;
-  weightInGrams: string;
-  notes: string;
-  photo?: File | null;
-}
+const validationSchema = yup.object().shape({
+  dateRecorded: yup
+    .date()
+    .required("Date is required")
+    .max(new Date(), "Date cannot be in the future")
+    .typeError("A valid date is required."),
+  weightInGrams: yup
+    .number()
+    .required("Weight is required")
+    .positive("Weight must be a positive number")
+    .typeError("Weight must be a number"),
+  notes: yup
+    .string()
+    .default("")
+    .max(200, "Notes cannot be longer than 200 characters"),
+  photoUrl: yup
+    .mixed<FileList>()
+    .required("Photo is required")
+    .test("fileSize", "The file is too large", (value) => {
+      if (!value || !value.length) return true; // attachment is optional
+      return value[0].size <= 5242880; // 5MB
+    })
+    .test("fileType", "Unsupported file format", (value) => {
+      if (!value || !value.length) return true;
+      return ["image/jpeg", "image/png", "image/gif"].includes(value[0].type);
+    }),
+});
+
+type WeightFormData = yup.InferType<typeof validationSchema>;
 
 const AddWeightForm: React.FC<AddWeightFormProps> = ({
   kittenId,
   onAddWeight,
   onCancel,
 }) => {
-  const [newWeight, setNewWeight] = useState<NewWeightFormData>({
-    dateRecorded: new Date().toISOString().split("T")[0],
-    weightInGrams: "",
-    notes: "",
-    photo: null,
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<WeightFormData>({
+    resolver: yupResolver(validationSchema),
+    mode: "onBlur",
   });
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, files } = e.target as HTMLInputElement;
-    if (name === "photo" && files) {
-      setNewWeight({ ...newWeight, photo: files[0] });
-    } else {
-      setNewWeight({ ...newWeight, [name]: value });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (
-      !newWeight.dateRecorded ||
-      !newWeight.weightInGrams.trim() ||
-      parseFloat(newWeight.weightInGrams) <= 0
-    ) {
-      setError("Valid date and positive weight are required.");
-      return;
-    }
-
+  const onSubmit = async (data: WeightFormData) => {
     const formData = new FormData();
-    formData.append("dateRecorded", newWeight.dateRecorded);
-    formData.append("weightInGrams", newWeight.weightInGrams);
-    formData.append("notes", newWeight.notes);
-    if (newWeight.photo) {
-      formData.append("photo", newWeight.photo);
+    formData.append("dateRecorded", data.dateRecorded.toDateString());
+    formData.append("weightInGrams", data.weightInGrams.toString());
+    formData.append("notes", data.notes);
+    if (data.photoUrl && data.photoUrl.length > 0) {
+      formData.append("photo", data.photoUrl[0]);
     }
 
     setError(null);
     try {
       await onAddWeight(kittenId, formData);
+      reset();
       onCancel(); // Close form on success
     } catch (err: any) {
       setError(err.message || "Failed to add weight record.");
@@ -67,22 +79,46 @@ const AddWeightForm: React.FC<AddWeightFormProps> = ({
 
   return (
     <div className="card p-3 mt-3 bg-light border">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <div className="row">
-          <div className="col-md-6 mb-2">
+          {/* <div className="col-md-6 mb-2">
             <label htmlFor={`weightDate-${kittenId}`} className="form-label">
               Date*
             </label>
             <input
               type="date"
-              className="form-control form-control-sm"
+              className={`form-control form-control-sm ${
+                errors.dateRecorded ? "is-invalid" : ""
+              }`}
               id={`weightDate-${kittenId}`}
-              name="dateRecorded"
-              value={newWeight.dateRecorded}
-              onChange={handleChange}
-              required
+              {...register("dateRecorded")}
             />
-          </div>
+            {errors.dateRecorded && (
+              <div className="invalid-feedback">
+                {errors.dateRecorded.message}
+              </div>
+            )}
+          </div> */}
+          <Controller
+            name="dateRecorded"
+            control={control}
+            render={({ field }) => (
+              <DatePicker
+                label="Date Recorded*"
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(newValue: Dayjs | null) =>
+                  field.onChange(newValue ? newValue.toDate() : null)
+                }
+                sx={{ width: "100%", mt: 2, mb: 1 }}
+                slotProps={{
+                  textField: {
+                    error: !!errors.dateRecorded,
+                    helperText: errors.dateRecorded?.message,
+                  },
+                }}
+              />
+            )}
+          />
           <div className="col-md-6 mb-2">
             <label htmlFor={`weightGrams-${kittenId}`} className="form-label">
               Weight (grams)*
@@ -90,14 +126,18 @@ const AddWeightForm: React.FC<AddWeightFormProps> = ({
             <input
               type="number"
               step="0.1"
-              className="form-control form-control-sm"
+              className={`form-control form-control-sm ${
+                errors.weightInGrams ? "is-invalid" : ""
+              }`}
               id={`weightGrams-${kittenId}`}
-              name="weightInGrams"
-              value={newWeight.weightInGrams}
-              onChange={handleChange}
               placeholder="e.g., 120.5"
-              required
+              {...register("weightInGrams")}
             />
+            {errors.weightInGrams && (
+              <div className="invalid-feedback">
+                {errors.weightInGrams.message}
+              </div>
+            )}
           </div>
         </div>
         <div className="mb-3">
@@ -106,12 +146,14 @@ const AddWeightForm: React.FC<AddWeightFormProps> = ({
           </label>
           <input
             type="file"
-            className="form-control"
+            className={`form-control ${errors.photoUrl ? "is-invalid" : ""}`}
             id="photo"
-            name="photo"
             accept="image/*"
-            onChange={handleChange}
+            {...register("photoUrl")}
           />
+          {errors.photoUrl && (
+            <div className="invalid-feedback">{errors.photoUrl.message}</div>
+          )}
         </div>
 
         <div className="mb-2">
@@ -119,18 +161,25 @@ const AddWeightForm: React.FC<AddWeightFormProps> = ({
             Notes
           </label>
           <textarea
-            className="form-control form-control-sm"
+            className={`form-control form-control-sm ${
+              errors.notes ? "is-invalid" : ""
+            }`}
             id={`weightNotes-${kittenId}`}
-            name="notes"
             rows={2}
-            value={newWeight.notes}
-            onChange={handleChange}
+            {...register("notes")}
           ></textarea>
+          {errors.notes && (
+            <div className="invalid-feedback">{errors.notes.message}</div>
+          )}
         </div>
 
         {error && <div className="alert alert-danger mt-3">{error}</div>}
-        <button type="submit" className="btn btn-primary me-2">
-          Save Weight
+        <button
+          type="submit"
+          className="btn btn-primary me-2"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving..." : "Save Weight"}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onCancel}>
           Cancel
